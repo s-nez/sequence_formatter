@@ -5,29 +5,43 @@ use feature qw[ say state ];
 use autodie;
 use Getopt::Long;
 use Term::ANSIColor qw[ color colorvalid ];
+use Pod::Usage;
 
 my ($limit, $color_base, $color_complement) = (20);
 my @ind_to_highlight;
-GetOptions(
-    'limit=i'            => \$limit,
-    'color-base=s'       => \$color_base,
-    'color-complement=s' => \$color_complement,
-    'highlight=i'        => \@ind_to_highlight,
-) or die "Invalid arguments\n";
 
-# Validate options
-die "--limit must be a positive integer\n" unless $limit > 0;
-die "--highlight must be a positive integer\n"
-  foreach grep { $_ <= 0 } @ind_to_highlight;
+{    # Argument processing
+    local $SIG{__DIE__} = sub {
+        pod2usage(
+            -verbose   => 1,
+            -noperldoc => 1,
+            -message   => $_[0],
+        );
+    };
 
-foreach my $color ($color_base, $color_complement) {
-    die "Invalid color: $color\n" if defined $color and not colorvalid($color);
-    die "Bold colors not supported with --highlight\n"
-      if defined $color
-      and @ind_to_highlight
-      and index($color, 'bold') != -1;
+    GetOptions(
+        'limit=i'            => \$limit,
+        'color-base=s'       => \$color_base,
+        'color-complement=s' => \$color_complement,
+        'highlight=i'        => \@ind_to_highlight,
+    ) or die "Invalid arguments\n";
+
+    # Validate options
+    die "--limit must be a positive integer\n" unless $limit > 0;
+    die "--highlight must be a positive integer\n"
+      foreach grep { $_ <= 0 } @ind_to_highlight;
+
+    foreach my $color ($color_base, $color_complement) {
+        die "Invalid color: $color\n"
+          if defined $color and not colorvalid($color);
+        die "Bold colors not supported with --highlight\n"
+          if defined $color
+          and @ind_to_highlight
+          and index($color, 'bold') != -1;
+    }
+    die "Specify a single input filename\n" unless @ARGV == 1;
 }
-die "Specify a single input filename\n" unless @ARGV == 1;
+
 my ($filename) = @ARGV;
 
 my @buffer;
@@ -135,8 +149,7 @@ seq.txt with the following content:
     GTTCCGACACCTGCGGTCCAAGGTGACCAACTTCTTTGTCATCTCCTTGGCTGTGTCAGA
     TCTCTTGGTGGCCGTCCTGGTCATGCCCTGGAAGGCAGTGGCTGAGATTGCTGGCTTCTG
 
-To display the sequence, 15 codons per line and find the 27th codon,
-we could use:
+To display the sequence, 15 codons per line, we could use:
 
     perl seq_format.pl --limit 15 seq.txt
 
@@ -167,21 +180,6 @@ If we wanted to find out which codon is the 27th one, we could
 highlight it with:
 
     perl seq_format.pl --limit 15 --highlight 27 seq.txt
-
-Then, the second line of codons in the output above would change to:
-
-=for comment
-I couldn't find a better way to preserve the layout
-and add bold at the same time.
-
-=over 4
-
-=item CAC CTC TGC CAT GGA CGG GAC TGG GCT GGT GGT GGA B<GAG> GGA CTT
-
-=item GTG GAG ACG GTA CCT GCC CTG ACC CGA CCA CCA CCT B<CTC> CCT GAA
-
-=back
-
 
 =head1 SYNOPSIS
 
